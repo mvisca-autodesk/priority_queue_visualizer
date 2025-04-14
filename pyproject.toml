@@ -1,0 +1,11 @@
+[project]
+name = "priority-queue"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "redis>=5.2.1",
+    "streamlit>=1.43.2",
+    "watchdog>=6.0.0",
+]
