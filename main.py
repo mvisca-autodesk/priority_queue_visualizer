@@ -16,7 +16,7 @@ def punish_new_ones(identifier: str, number: int = 2, base_priority: int = 0, sp
     Every time a new item is added to the queue, it will punish a little bit the base_priority
     """
     priority_counter = int(r.get("priority_counter") or 0)  # type: ignore
-    for i in range(1,number+1):
+    for i in range(1, number + 1):
         priority = (base_priority + int(priority_counter)) + i * spacing
         r.zadd(queue_name, {f"p_{identifier}|{i}": priority})
 
@@ -29,7 +29,7 @@ def use_base_priority_always(identifier: str, number: int = 2, base_priority: in
     Every time a new item is added to the queue, it will punish a little bit the base_priority
     """
 
-    for i in range(1,number+1):
+    for i in range(1, number + 1):
         priority = base_priority + i * spacing
         r.zadd(queue_name, {f"p_{identifier}|{i}": priority})
 
@@ -43,7 +43,7 @@ def build_dataframe(prioritization_strategy, identifier: str, queue_name: str, n
                     spacing: int = 10):
     if number != 0:
         prioritization_strategy(identifier=identifier, number=number, base_priority=base_priority, spacing=spacing,
-                            queue_name=queue_name)
+                                queue_name=queue_name)
 
     dump = dump_queue(queue_name)
 
@@ -54,7 +54,7 @@ def build_dataframe(prioritization_strategy, identifier: str, queue_name: str, n
 
     for item, priority in dump:
         package, chunk = item.decode().split("|")
-        packages[package].append((int(chunk),priority))
+        packages[package].append((int(chunk), priority))
 
     for package, package_entries in packages.items():
         chart_data[package] = None
@@ -79,8 +79,6 @@ def main():
     identifier = uuid4().hex[:5]  # Generate the identifier
     number = st.sidebar.number_input("Number of items to add", min_value=1, max_value=100, value=5)
 
-
-
     if "s1" not in st.session_state:
         st.session_state.s1 = None
     if "s2" not in st.session_state:
@@ -95,7 +93,17 @@ def main():
 
     if st.sidebar.button("Dequeue Top 5"):
         for queue in ["q1", "q2"]:
-            r.zpopmin(queue, count=5)
+            dequeued_items = r.zpopmin(queue, count=5)
+            if f"dequeued_{queue}" not in st.session_state:
+                st.session_state[f"dequeued_{queue}"] = []
+            st.session_state[f"dequeued_{queue}"].extend(dequeued_items)
+
+        for queue in ["q1", "q2"]:
+            if f"dequeued_{queue}" in st.session_state:
+                st.title(f"Dequeued Items from {queue}")
+                for item, priority in st.session_state[f"dequeued_{queue}"]:
+                    st.write(f"Item: {item.decode()}, Priority: {int(priority)}")
+
         if st.session_state.s1 is not None:
             st.session_state.s1 = build_dataframe(use_base_priority_always, queue_name="q1", identifier=identifier,
                                                   number=0, base_priority=0, spacing=10)
@@ -111,11 +119,11 @@ def main():
         st.title("Punish New Ones")
         st.bar_chart(st.session_state.s2, x="priorities", stack=False, use_container_width=True)
 
-
-
-    st.sidebar.button("Clean", on_click=lambda: clean_chart(
+    st.sidebar.button("Clean", on_click=lambda: (clean_chart(
         [st.session_state.s1, st.session_state.s2],
-        ["q1", "q2"]))
+        ["q1", "q2"]),
+                                                 [st.session_state.pop(f"dequeued_{queue}", None) for queue in
+                                                  ["q1", "q2"]]))
 
 
 if __name__ == "__main__":
