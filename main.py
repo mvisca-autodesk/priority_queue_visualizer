@@ -81,8 +81,10 @@ def main():
 
     if "s1" not in st.session_state:
         st.session_state.s1 = None
+        st.session_state["dequeued_q1"] = None
     if "s2" not in st.session_state:
         st.session_state.s2 = None
+        st.session_state["dequeued_q2"] = None
 
     if st.sidebar.button("Insert into queue"):
         st.session_state.s1 = build_dataframe(use_base_priority_always, queue_name="q1", identifier=identifier,
@@ -96,13 +98,7 @@ def main():
             dequeued_items = r.zpopmin(queue, count=5)
             if f"dequeued_{queue}" not in st.session_state:
                 st.session_state[f"dequeued_{queue}"] = []
-            st.session_state[f"dequeued_{queue}"].extend(dequeued_items)
-
-        for queue in ["q1", "q2"]:
-            if f"dequeued_{queue}" in st.session_state:
-                st.title(f"Dequeued Items from {queue}")
-                for item, priority in st.session_state[f"dequeued_{queue}"]:
-                    st.write(f"Item: {item.decode()}, Priority: {int(priority)}")
+            st.session_state[f"dequeued_{queue}"].append(dequeued_items)
 
         if st.session_state.s1 is not None:
             st.session_state.s1 = build_dataframe(use_base_priority_always, queue_name="q1", identifier=identifier,
@@ -115,9 +111,27 @@ def main():
         st.title("Normal Queue")
         st.bar_chart(st.session_state.s1, x="priorities", stack=False, use_container_width=True)
 
+    if st.session_state["dequeued_q1"] is not None:
+        st.title("Dequeued Items from Normal Queue")
+        for batches in st.session_state[f"dequeued_q1"]:
+            batch_items = []
+            for item, priority in batches:
+                item = item.decode()
+                batch_items.append(f"Item: {item}, Priority: {int(priority)}")
+            st.write(batch_items)
+
     if st.session_state.s2 is not None:
         st.title("Punish New Ones")
         st.bar_chart(st.session_state.s2, x="priorities", stack=False, use_container_width=True)
+
+    if st.session_state[f"dequeued_q2"] is not None:
+        st.title("Dequeued Items from Punish New Queue")
+        for batches in st.session_state[f"dequeued_q2"]:
+            batch_items = []
+            for item, priority in batches:
+                item = item.decode()
+                batch_items.append(f"Item: {item}, Priority: {int(priority)}")
+            st.write(batch_items)
 
     st.sidebar.button("Clean", on_click=lambda: (clean_chart(
         [st.session_state.s1, st.session_state.s2],
