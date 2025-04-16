@@ -58,8 +58,8 @@ def build_dataframe(prioritization_strategy, identifier: str, queue_name: str, n
     for package, package_entries in packages.items():
         chart_data[package] = None
 
-        for entry in package_entries:
-            chart_data.loc[chart_data["priorities"] == entry, package] = 1
+        for index, entry in enumerate(package_entries, start=1):
+            chart_data.loc[chart_data["priorities"] == entry, package] = index
 
     return chart_data
 
