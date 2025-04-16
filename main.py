@@ -72,6 +72,8 @@ def clean_chart(dataframes, queues):
     r.set("priority_counter", 0)
 
 def main():
+    st.set_page_config(layout="wide")
+
     st.title("Normal Queue")
     s1 = build_dataframe(use_base_priority_always, "q1", number=10, base_priority=0, spacing=10)
     st.bar_chart(s1, x="priorities", stack=False, use_container_width=True)
