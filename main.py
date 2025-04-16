@@ -77,19 +77,20 @@ def clean_chart(dataframes, queues):
 def main():
     st.set_page_config(layout="wide")
     identifier = uuid4().hex[:5]  # Generate the identifier
+    number = st.sidebar.number_input("Number of items to add", min_value=1, max_value=100, value=5)
 
     st.title("Normal Queue")
-    s1 = build_dataframe(use_base_priority_always, queue_name="q1", identifier=identifier, number=10, base_priority=0,
+    s1 = build_dataframe(use_base_priority_always, queue_name="q1", identifier=identifier, number=number, base_priority=0,
                          spacing=10)
     st.bar_chart(s1, x="priorities", stack=False, use_container_width=True)
 
     st.title("Punish new ones Queue")
-    s2 = build_dataframe(punish_new_ones, queue_name="q2", identifier=identifier, number=10, base_priority=0,
+    s2 = build_dataframe(punish_new_ones, queue_name="q2", identifier=identifier, number=number, base_priority=0,
                          spacing=10)
     st.bar_chart(s2, x="priorities", stack=False, use_container_width=True)
 
-    st.button("Insert into queue")
-    st.button("Clean", on_click=lambda: clean_chart([s1, s2], ["q1", "q2"]))
+    st.sidebar.button("Insert into queue")
+    st.sidebar.button("Clean", on_click=lambda: clean_chart([s1, s2], ["q1", "q2"]))
 
 
 if __name__ == "__main__":
