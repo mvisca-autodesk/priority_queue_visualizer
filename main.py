@@ -16,7 +16,7 @@ def punish_new_ones(identifier: str, number: int = 2, base_priority: int = 0, sp
     Every time a new item is added to the queue, it will punish a little bit the base_priority
     """
     priority_counter = int(r.get("priority_counter") or 0)  # type: ignore
-    for i in range(number):
+    for i in range(1,number+1):
         priority = (base_priority + int(priority_counter)) + i * spacing
         r.zadd(queue_name, {f"p_{identifier}|{i}": priority})
 
@@ -29,7 +29,7 @@ def use_base_priority_always(identifier: str, number: int = 2, base_priority: in
     Every time a new item is added to the queue, it will punish a little bit the base_priority
     """
 
-    for i in range(number):
+    for i in range(1,number+1):
         priority = base_priority + i * spacing
         r.zadd(queue_name, {f"p_{identifier}|{i}": priority})
 
@@ -41,7 +41,8 @@ def dump_queue(queue_name):
 
 def build_dataframe(prioritization_strategy, identifier: str, queue_name: str, number: int, base_priority: int = 0,
                     spacing: int = 10):
-    prioritization_strategy(identifier=identifier, number=number, base_priority=base_priority, spacing=spacing,
+    if number != 0:
+        prioritization_strategy(identifier=identifier, number=number, base_priority=base_priority, spacing=spacing,
                             queue_name=queue_name)
 
     dump = dump_queue(queue_name)
@@ -53,13 +54,12 @@ def build_dataframe(prioritization_strategy, identifier: str, queue_name: str, n
 
     for item, priority in dump:
         package, chunk = item.decode().split("|")
-        packages[package].append(priority)
+        packages[package].append((int(chunk),priority))
 
     for package, package_entries in packages.items():
         chart_data[package] = None
-
-        for index, entry in enumerate(package_entries, start=1):
-            chart_data.loc[chart_data["priorities"] == entry, package] = index
+        for chunk, priority in package_entries:
+            chart_data.loc[chart_data["priorities"] == priority, package] = chunk
 
     return chart_data
 
@@ -93,6 +93,16 @@ def main():
         st.session_state.s2 = build_dataframe(punish_new_ones, queue_name="q2", identifier=identifier, number=number,
                                               base_priority=0, spacing=10)
 
+    if st.sidebar.button("Dequeue Top 5"):
+        for queue in ["q1", "q2"]:
+            r.zpopmin(queue, count=5)
+        if st.session_state.s1 is not None:
+            st.session_state.s1 = build_dataframe(use_base_priority_always, queue_name="q1", identifier=identifier,
+                                                  number=0, base_priority=0, spacing=10)
+        if st.session_state.s2 is not None:
+            st.session_state.s2 = build_dataframe(punish_new_ones, queue_name="q2", identifier=identifier,
+                                                  number=0, base_priority=0, spacing=10)
+
     if st.session_state.s1 is not None:
         st.title("Normal Queue")
         st.bar_chart(st.session_state.s1, x="priorities", stack=False, use_container_width=True)
@@ -100,6 +110,8 @@ def main():
     if st.session_state.s2 is not None:
         st.title("Punish New Ones")
         st.bar_chart(st.session_state.s2, x="priorities", stack=False, use_container_width=True)
+
+
 
     st.sidebar.button("Clean", on_click=lambda: clean_chart(
         [st.session_state.s1, st.session_state.s2],
