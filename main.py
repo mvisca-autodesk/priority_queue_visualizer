@@ -111,26 +111,24 @@ def main():
         st.title("Normal Queue")
         st.bar_chart(st.session_state.s1, x="priorities", stack=False, use_container_width=True)
 
-    if st.session_state["dequeued_q1"] is not None:
+    if "dequeued_q1" in st.session_state and st.session_state["dequeued_q1"] is not None:
         st.title("Dequeued Items from Normal Queue")
         for batches in st.session_state[f"dequeued_q1"]:
             batch_items = []
             for item, priority in batches:
-                item = item.decode()
-                batch_items.append(f"Item: {item}, Priority: {int(priority)}")
-            st.write(batch_items)
+                batch_items.append(item.decode())
+            st.write(f"{batch_items}")
 
     if st.session_state.s2 is not None:
         st.title("Punish New Ones")
         st.bar_chart(st.session_state.s2, x="priorities", stack=False, use_container_width=True)
 
-    if st.session_state[f"dequeued_q2"] is not None:
+    if "dequeued_q2" in st.session_state and st.session_state["dequeued_q2"] is not None:
         st.title("Dequeued Items from Punish New Queue")
         for batches in st.session_state[f"dequeued_q2"]:
             batch_items = []
             for item, priority in batches:
-                item = item.decode()
-                batch_items.append(f"Item: {item}, Priority: {int(priority)}")
+                batch_items.append(item.decode())
             st.write(batch_items)
 
     st.sidebar.button("Clean", on_click=lambda: (clean_chart(
