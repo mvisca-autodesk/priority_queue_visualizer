@@ -1,3 +1,4 @@
+import random
 from collections import defaultdict
 from uuid import uuid4
 
@@ -9,6 +10,11 @@ r = redis.Redis()
 
 
 # Strategies
+
+def generate_color():
+    """Generate a valid random color in hex format."""
+    return f"#{random.randint(0, 0xFFFFFF):06x}"
+
 
 def punish_new_ones(identifier: str, number: int = 2, base_priority: int = 0, spacing: int = 10,
                     queue_name: str = "test_queue"):
@@ -76,17 +82,20 @@ def clean_chart(dataframes, queues):
 
 def main():
     st.set_page_config(layout="wide")
-    identifier = uuid4().hex[:5]  # Generate the identifier
     number = st.sidebar.number_input("Number of items to add", min_value=1, max_value=100, value=5)
 
     if "s1" not in st.session_state:
         st.session_state.s1 = None
-        st.session_state["dequeued_q1"] = None
     if "s2" not in st.session_state:
         st.session_state.s2 = None
-        st.session_state["dequeued_q2"] = None
+    if "identifier_colors" not in st.session_state:
+        st.session_state.identifier_colors = {}
 
     if st.sidebar.button("Insert into queue"):
+        identifier = uuid4().hex[:5]  # Generate the identifier
+        if identifier not in st.session_state.identifier_colors:
+            st.session_state.identifier_colors[f"p_{identifier}"] = generate_color()
+
         st.session_state.s1 = build_dataframe(use_base_priority_always, queue_name="q1", identifier=identifier,
                                               number=number,
                                               base_priority=0, spacing=10)
@@ -101,41 +110,56 @@ def main():
             st.session_state[f"dequeued_{queue}"].append(dequeued_items)
 
         if st.session_state.s1 is not None:
-            st.session_state.s1 = build_dataframe(use_base_priority_always, queue_name="q1", identifier=identifier,
+            st.session_state.s1 = build_dataframe(use_base_priority_always, queue_name="q1", identifier="n/a",
                                                   number=0, base_priority=0, spacing=10)
         if st.session_state.s2 is not None:
-            st.session_state.s2 = build_dataframe(punish_new_ones, queue_name="q2", identifier=identifier,
+            st.session_state.s2 = build_dataframe(punish_new_ones, queue_name="q2", identifier="n/a",
                                                   number=0, base_priority=0, spacing=10)
 
     if st.session_state.s1 is not None:
         st.title("Normal Queue")
-        st.bar_chart(st.session_state.s1, x="priorities", stack=False, use_container_width=True)
+        st.bar_chart(st.session_state.s1, x="priorities", stack=False, use_container_width=True,
+                     color=list(st.session_state.identifier_colors.values()))
+
+    if st.session_state.s2 is not None:
+        st.title("Punish New Ones")
+        st.bar_chart(st.session_state.s2, x="priorities", stack=False, use_container_width=True,
+                     color=list(st.session_state.identifier_colors.values()))
 
     if "dequeued_q1" in st.session_state and st.session_state["dequeued_q1"] is not None:
         st.title("Dequeued Items from Normal Queue")
         for batches in st.session_state[f"dequeued_q1"]:
             batch_items = []
             for item, priority in batches:
-                batch_items.append(item.decode())
-            st.write(f"{batch_items}")
-
-    if st.session_state.s2 is not None:
-        st.title("Punish New Ones")
-        st.bar_chart(st.session_state.s2, x="priorities", stack=False, use_container_width=True)
+                item_decoded = item.decode()
+                color = st.session_state.identifier_colors.get(item_decoded.split("|")[0], "#000000")
+                batch_items.append(
+                    f"<div style='display:inline-block;text-align:center;margin-right:10px;'>"
+                    f"<div style='width:50px;height:50px;background-color:{color};'></div>"
+                    f"<div style='color:black;'>{item_decoded}</div>"
+                    f"</div>")
+            st.markdown(" ".join(batch_items), unsafe_allow_html=True)
 
     if "dequeued_q2" in st.session_state and st.session_state["dequeued_q2"] is not None:
         st.title("Dequeued Items from Punish New Queue")
         for batches in st.session_state[f"dequeued_q2"]:
             batch_items = []
             for item, priority in batches:
-                batch_items.append(item.decode())
-            st.write(batch_items)
+                item_decoded = item.decode()
+                color = st.session_state.identifier_colors.get(item_decoded.split("|")[0], "#000000")
+                batch_items.append(
+                    f"<div style='display:inline-block;text-align:center;margin-right:10px;'>"
+                    f"<div style='width:50px;height:50px;background-color:{color};'></div>"
+                    f"<div style='color:black;'>{item_decoded}</div>"
+                    f"</div>")
+            st.markdown(" ".join(batch_items), unsafe_allow_html=True)
 
     st.sidebar.button("Clean", on_click=lambda: (clean_chart(
         [st.session_state.s1, st.session_state.s2],
         ["q1", "q2"]),
                                                  [st.session_state.pop(f"dequeued_{queue}", None) for queue in
-                                                  ["q1", "q2"]]))
+                                                  ["q1", "q2"]],
+                                                 st.session_state.identifier_colors.clear()))
 
 
 if __name__ == "__main__":
