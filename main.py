@@ -157,6 +157,8 @@ def main():
         st.session_state.s1 = None
     if "s2" not in st.session_state:
         st.session_state.s2 = None
+    if "package_number" not in st.session_state:
+        st.session_state.package_number = 0
 
     if st.sidebar.button("Insert into queue"):
         insert_into_queue(insert_number)
@@ -210,11 +212,12 @@ def main():
         [st.session_state.s1, st.session_state.s2],
         ["q1", "q2"]),
                                                  [st.session_state.pop(f"dequeued_{queue}", None) for queue in
-                                                  ["q1", "q2"]],))
+                                                  ["q1", "q2"]],
+    st.session_state.pop("package_number", None)))
 
 
 def insert_into_queue(insert_number):
-    identifier = uuid4().hex[:6]  # Generate the identifier
+    identifier = f"{str(st.session_state.package_number).zfill(2)}_{uuid4().hex[:6]}"  # Generate the identifier
     st.session_state.s1 = build_dataframe(use_base_priority_always,
                                           queue_name="q1",
                                           identifier=identifier,
@@ -226,6 +229,7 @@ def insert_into_queue(insert_number):
                                           number=insert_number,
                                           base_priority=0,
                                           spacing=10)
+    st.session_state.package_number +=1
 
 
 if __name__ == "__main__":
