@@ -1,11 +1,10 @@
-import random
-import time
 from collections import defaultdict
 from uuid import uuid4
 
 import pandas as pd
 import redis
 import streamlit as st
+import altair as alt
 
 r = redis.Redis()
 
@@ -132,6 +131,24 @@ def render_dequeued_batch(batch, index):
     st.markdown(markdown_to_write, unsafe_allow_html=True)
     st.divider()
 
+
+def render_bar_chart(dataframe, title):
+    melted_df = dataframe.melt(id_vars=["priorities"], var_name="package", value_name="chunk")
+
+    chart = alt.Chart(melted_df).mark_bar().encode(
+        x=alt.X("priorities:O", title="Priorities"),
+        xOffset="package:N",
+        y=alt.Y("chunk:Q", title="Chunks"),
+        color=alt.Color("package:N", legend=alt.Legend(title="Package")),
+        tooltip=["package", "chunk", "priorities"]
+    ).properties(
+        title=title,
+        width=800,
+        height=400
+    )
+
+    st.altair_chart(chart, use_container_width=True)
+
 def main():
     st.set_page_config(layout="wide")
     insert_number = st.sidebar.number_input("Number of items to add", min_value=1, max_value=100, value=5)
@@ -169,12 +186,10 @@ def main():
                                                   number=0, base_priority=0, spacing=10)
 
     if st.session_state.s1 is not None:
-        st.title("Normal Queue")
-        st.bar_chart(st.session_state.s1, x="priorities", stack=False, use_container_width=True,)
+        render_bar_chart(st.session_state.s1, "Base Priority")
 
     if st.session_state.s2 is not None:
-        st.title(f"{strategy}")
-        st.bar_chart(st.session_state.s2, x="priorities", stack=False, use_container_width=True,)
+        render_bar_chart(st.session_state.s2, f"{strategy}")
 
     col1, col2 = st.columns(2)
 
