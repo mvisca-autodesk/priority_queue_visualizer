@@ -85,12 +85,14 @@ def render_dequeued_batch(batch, index):
     batch_items = []
     for item, priority in batch:
         item_decoded = item.decode()
+        identifier = item_decoded.split("|")[0]
+        chunk = item_decoded.split("|")[1]
         color =  "#D3D3D3"
-        size = 30
+        size = 35
         batch_items.append(
-            f"<div style='display:inline-block;text-align:center;margin-right:20px;margin-bottom:0px;'>"
-            f"<div style='width:{size}px;height:{size}px;background-color:{color};'></div>"
-            f"<div style='color:black;'>{item_decoded}</div>"
+            f"<div style='display:inline-block;text-align:center;margin-right:15px;margin-bottom:0px;'>"
+            f"<div style='width:{size}px;height:{size}px;background-color:{color};'>{chunk}</div>"
+            f"<div style='color:black;'>{identifier}</div>"
             f"</div>")
     st.write(f"Batch {index + 1}")
     markdown_to_write = " ".join(batch_items)
@@ -99,7 +101,7 @@ def render_dequeued_batch(batch, index):
 
 def main():
     st.set_page_config(layout="wide")
-    number = st.sidebar.number_input("Number of items to add", min_value=1, max_value=100, value=5)
+    insert_number = st.sidebar.number_input("Number of items to add", min_value=1, max_value=100, value=5)
 
     if "s1" not in st.session_state:
         st.session_state.s1 = None
@@ -111,18 +113,19 @@ def main():
         st.session_state.s1 = build_dataframe(use_base_priority_always,
                                               queue_name="q1",
                                               identifier=identifier,
-                                              number=number,
+                                              number=insert_number,
                                               base_priority=0, spacing=10)
         st.session_state.s2 = build_dataframe(punish_new_ones,
                                               queue_name="q2",
                                               identifier=identifier,
-                                              number=number,
+                                              number=insert_number,
                                               base_priority=0,
                                               spacing=10)
+    dequeue_number = st.sidebar.number_input("Number to dequeue", min_value=1, max_value=100, value=5)
 
-    if st.sidebar.button("Dequeue Top 5"):
+    if st.sidebar.button("Dequeue"):
         for queue in ["q1", "q2"]:
-            dequeued_items = r.zpopmin(queue, count=5)
+            dequeued_items = r.zpopmin(queue, count=dequeue_number)
             if f"dequeued_{queue}" not in st.session_state:
                 st.session_state[f"dequeued_{queue}"] = []
             st.session_state[f"dequeued_{queue}"].append(dequeued_items)
