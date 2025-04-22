@@ -1,4 +1,5 @@
 import random
+import time
 from collections import defaultdict
 from uuid import uuid4
 
@@ -7,6 +8,26 @@ import redis
 import streamlit as st
 
 r = redis.Redis()
+
+
+
+
+def balanced_priority_strategy(identifier: str,
+                               number: int = 2,
+                               base_priority: int = 0,
+                               spacing: int = 10,
+                               queue_name: str = "balanced_queue"):
+    """
+    Balances priorities such that large packages do not block smaller ones,
+    and smaller packages do not excessively punish larger ones.
+    """
+    priority_counter = int(r.get("priority_counter") or 0)  # type: ignore
+    weight = max(1, number // 5)  # Adjust weight based on package size
+    for i in range(1, number + 1):
+        priority = (base_priority + int(priority_counter)) + (i * spacing) // weight
+        r.zadd(queue_name, {f"p_{identifier}|{i}": priority})
+
+    r.incr("priority_counter")
 
 
 def punish_new_ones(identifier: str,
@@ -23,6 +44,18 @@ def punish_new_ones(identifier: str,
         r.zadd(queue_name, {f"p_{identifier}|{i}": priority})
 
     r.incr("priority_counter")
+
+strategy = "Balanced Strategy"
+def compare_strategy(identifier: str,
+                             number: int = 2,
+                             base_priority: int = 0,
+                             spacing: int = 10,
+                             queue_name: str = "compare_queue"):
+    balanced_priority_strategy(
+        identifier=identifier,
+        number=number, base_priority=base_priority, spacing=spacing,
+        queue_name=queue_name
+    )
 
 
 def use_base_priority_always(identifier: str,
@@ -131,7 +164,7 @@ def main():
                                                   identifier="n/a",
                                                   number=0, base_priority=0, spacing=10)
         if st.session_state.s2 is not None:
-            st.session_state.s2 = build_dataframe(punish_new_ones, queue_name="q2",
+            st.session_state.s2 = build_dataframe(compare_strategy, queue_name="q2",
                                                   identifier="n/a",
                                                   number=0, base_priority=0, spacing=10)
 
@@ -140,7 +173,7 @@ def main():
         st.bar_chart(st.session_state.s1, x="priorities", stack=False, use_container_width=True,)
 
     if st.session_state.s2 is not None:
-        st.title("Punish New Ones")
+        st.title(f"{strategy}")
         st.bar_chart(st.session_state.s2, x="priorities", stack=False, use_container_width=True,)
 
     col1, col2 = st.columns(2)
@@ -154,7 +187,7 @@ def main():
 
     with col2:
         if "dequeued_q2" in st.session_state and st.session_state["dequeued_q2"] is not None:
-            st.title("Punish New Queue:dequeued")
+            st.title(f"{strategy} Queue:dequeued")
             for i, batch in enumerate(st.session_state[f"dequeued_q2"]):
                 render_dequeued_batch(batch, i)
 
@@ -172,7 +205,7 @@ def insert_into_queue(insert_number):
                                           identifier=identifier,
                                           number=insert_number,
                                           base_priority=0, spacing=10)
-    st.session_state.s2 = build_dataframe(punish_new_ones,
+    st.session_state.s2 = build_dataframe(compare_strategy,
                                           queue_name="q2",
                                           identifier=identifier,
                                           number=insert_number,
