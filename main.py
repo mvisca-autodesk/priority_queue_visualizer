@@ -109,18 +109,14 @@ def main():
         st.session_state.s2 = None
 
     if st.sidebar.button("Insert into queue"):
-        identifier = uuid4().hex[:6]  # Generate the identifier
-        st.session_state.s1 = build_dataframe(use_base_priority_always,
-                                              queue_name="q1",
-                                              identifier=identifier,
-                                              number=insert_number,
-                                              base_priority=0, spacing=10)
-        st.session_state.s2 = build_dataframe(punish_new_ones,
-                                              queue_name="q2",
-                                              identifier=identifier,
-                                              number=insert_number,
-                                              base_priority=0,
-                                              spacing=10)
+        insert_into_queue(insert_number)
+    if st.sidebar.button("Insert Large package"):
+        insert_into_queue(21)
+    if st.sidebar.button("Insert Medium package"):
+        insert_into_queue(9)
+    if st.sidebar.button("Insert Small package"):
+        insert_into_queue(5)
+
     dequeue_number = st.sidebar.number_input("Number to dequeue", min_value=1, max_value=100, value=5)
 
     if st.sidebar.button("Dequeue"):
@@ -167,6 +163,21 @@ def main():
         ["q1", "q2"]),
                                                  [st.session_state.pop(f"dequeued_{queue}", None) for queue in
                                                   ["q1", "q2"]],))
+
+
+def insert_into_queue(insert_number):
+    identifier = uuid4().hex[:6]  # Generate the identifier
+    st.session_state.s1 = build_dataframe(use_base_priority_always,
+                                          queue_name="q1",
+                                          identifier=identifier,
+                                          number=insert_number,
+                                          base_priority=0, spacing=10)
+    st.session_state.s2 = build_dataframe(punish_new_ones,
+                                          queue_name="q2",
+                                          identifier=identifier,
+                                          number=insert_number,
+                                          base_priority=0,
+                                          spacing=10)
 
 
 if __name__ == "__main__":
