@@ -21,9 +21,10 @@ def balanced_priority_strategy(identifier: str,
     and smaller packages do not excessively punish larger ones.
     """
     priority_counter = int(r.get("priority_counter") or 0)  # type: ignore
-    weight = max(1, number // 5)  # Adjust weight based on package size
+    weight = max(1, (number ** 0.5))  # Use square root to reduce punishment for smaller packages
+    # weight = max(1, number // 5)  # Adjust weight based on package size
     for i in range(1, number + 1):
-        priority = (base_priority + int(priority_counter)) + (i * spacing) // weight
+        priority = (base_priority + int(priority_counter)) + int((i * spacing) / weight)
         r.zadd(queue_name, {f"p_{identifier}|{i}": priority})
 
     r.incr("priority_counter")
@@ -112,6 +113,15 @@ def clean_chart(dataframes, queues):
 
     r.set("priority_counter", 0)
 
+def clean_all():
+    clean_chart(
+        list(st.session_state.dataframes.values()),
+        [strategy["queue_name"] for strategy in strategies]
+    )
+    for strategy in strategies:
+        st.session_state.pop(f"dequeued_{strategy['queue_name']}", None)
+    st.session_state.pop("package_number", None)
+
 
 def render_dequeued_batch(batch, index):
     batch_items = []
@@ -149,14 +159,18 @@ def render_bar_chart(dataframe, title):
 
     st.altair_chart(chart, use_container_width=True)
 
+strategies = [
+    {"name": "Base Priority", "function": use_base_priority_always, "queue_name": "q1"},
+    {"name": "Balanced Strategy", "function": compare_strategy, "queue_name": "q2"},
+    {"name": "Punish New Ones", "function": punish_new_ones, "queue_name": "q3"}
+]
+
 def main():
     st.set_page_config(layout="wide")
     insert_number = st.sidebar.number_input("Number of items to add", min_value=1, max_value=100, value=5)
 
-    if "s1" not in st.session_state:
-        st.session_state.s1 = None
-    if "s2" not in st.session_state:
-        st.session_state.s2 = None
+    if "dataframes" not in st.session_state:
+        st.session_state.dataframes = {strat["queue_name"]: None for strat in strategies}
     if "package_number" not in st.session_state:
         st.session_state.package_number = 0
 
@@ -172,64 +186,52 @@ def main():
     dequeue_number = st.sidebar.number_input("Number to dequeue", min_value=1, max_value=100, value=5)
 
     if st.sidebar.button("Dequeue"):
-        for queue in ["q1", "q2"]:
-            dequeued_items = r.zpopmin(queue, count=dequeue_number)
-            if f"dequeued_{queue}" not in st.session_state:
-                st.session_state[f"dequeued_{queue}"] = []
-            st.session_state[f"dequeued_{queue}"].append(dequeued_items)
+        for strategy in strategies:
+            dequeued_items = r.zpopmin(strategy["queue_name"], count=dequeue_number)
+            if f"dequeued_{strategy['queue_name']}" not in st.session_state:
+                st.session_state[f"dequeued_{strategy['queue_name']}"] = []
+            st.session_state[f"dequeued_{strategy['queue_name']}"].append(dequeued_items)
 
-        if st.session_state.s1 is not None:
-            st.session_state.s1 = build_dataframe(use_base_priority_always, queue_name="q1",
-                                                  identifier="n/a",
-                                                  number=0, base_priority=0, spacing=10)
-        if st.session_state.s2 is not None:
-            st.session_state.s2 = build_dataframe(compare_strategy, queue_name="q2",
-                                                  identifier="n/a",
-                                                  number=0, base_priority=0, spacing=10)
+            if st.session_state.dataframes[strategy["queue_name"]] is not None:
+                st.session_state.dataframes[strategy["queue_name"]] = build_dataframe(
+                    strategy["function"],
+                    queue_name=strategy["queue_name"],
+                    identifier="n/a",
+                    number=0,
+                    base_priority=0,
+                    spacing=10
+                )
 
-    if st.session_state.s1 is not None:
-        render_bar_chart(st.session_state.s1, "Base Priority")
+    # Render charts dynamically
+    for strategy in strategies:
+        if st.session_state.dataframes[strategy["queue_name"]] is not None:
+            render_bar_chart(st.session_state.dataframes[strategy["queue_name"]], strategy["name"])
 
-    if st.session_state.s2 is not None:
-        render_bar_chart(st.session_state.s2, f"{strategy}")
+    # Render dequeued items dynamically
+    columns = st.columns(len(strategies))
+    for col, strategy in zip(columns, strategies):
+        with col:
+            if f"dequeued_{strategy['queue_name']}" in st.session_state and st.session_state[
+                f"dequeued_{strategy['queue_name']}"] is not None:
+                st.title(f"{strategy['name']} Queue: dequeued")
+                for i, batch in enumerate(st.session_state[f"dequeued_{strategy['queue_name']}"]):
+                    render_dequeued_batch(batch, i)
 
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if "dequeued_q1" in st.session_state and st.session_state["dequeued_q1"] is not None:
-            st.title("Normal Queue:dequeued")
-            for i, batch in enumerate(st.session_state[f"dequeued_q1"]):
-                render_dequeued_batch(batch, i)
-
-
-    with col2:
-        if "dequeued_q2" in st.session_state and st.session_state["dequeued_q2"] is not None:
-            st.title(f"{strategy} Queue:dequeued")
-            for i, batch in enumerate(st.session_state[f"dequeued_q2"]):
-                render_dequeued_batch(batch, i)
-
-    st.sidebar.button("Clean", on_click=lambda: (clean_chart(
-        [st.session_state.s1, st.session_state.s2],
-        ["q1", "q2"]),
-                                                 [st.session_state.pop(f"dequeued_{queue}", None) for queue in
-                                                  ["q1", "q2"]],
-    st.session_state.pop("package_number", None)))
+    st.sidebar.button("Clean", on_click=lambda: clean_all())
 
 
 def insert_into_queue(insert_number):
     identifier = f"{str(st.session_state.package_number).zfill(2)}_{uuid4().hex[:6]}"  # Generate the identifier
-    st.session_state.s1 = build_dataframe(use_base_priority_always,
-                                          queue_name="q1",
-                                          identifier=identifier,
-                                          number=insert_number,
-                                          base_priority=0, spacing=10)
-    st.session_state.s2 = build_dataframe(compare_strategy,
-                                          queue_name="q2",
-                                          identifier=identifier,
-                                          number=insert_number,
-                                          base_priority=0,
-                                          spacing=10)
-    st.session_state.package_number +=1
+    for strategy in strategies:
+        st.session_state.dataframes[strategy["queue_name"]] = build_dataframe(
+            strategy["function"],
+            queue_name=strategy["queue_name"],
+            identifier=identifier,
+            number=insert_number,
+            base_priority=0,
+            spacing=10
+        )
+    st.session_state.package_number += 1
 
 
 if __name__ == "__main__":
