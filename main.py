@@ -7,10 +7,9 @@ import redis
 import streamlit as st
 import altair as alt
 
+from generate_report_priority_queue import GenerateReportPriorityQueue
+
 r = redis.Redis()
-
-
-
 
 def linear_weight_strategy(identifier: str,
                            number: int = 2,
@@ -120,9 +119,8 @@ def base_priority_strategy(identifier: str,
     Every time a new item is added to the queue, it will punish a little bit the base_priority
     """
 
-    for i in range(1, number + 1):
-        priority = base_priority + i * spacing
-        r.zadd(queue_name, {f"p_{identifier}|{i}": priority})
+    GenerateReportPriorityQueue(queue_name).prioritize_tasks(number_of_tasks=number,
+                                                               package_request_uid=identifier)
 
 strategies = [
     {"name": "Base Priority", "function": base_priority_strategy, "queue_name": "q1"},
