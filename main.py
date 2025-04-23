@@ -1,13 +1,12 @@
-from collections import defaultdict
 from math import log
 from uuid import uuid4
 
-import altair as alt
-import pandas as pd
 import redis
 import streamlit as st
 
-from generate_report_priority_queue import GenerateReportPriorityQueue
+from bar_chart import render_bar_chart, build_dataframe
+from clean import clean_all
+from dequeue import render_dequeued_batch, dequeue
 
 r = redis.Redis()
 
@@ -62,98 +61,6 @@ strategies = [
     {"name": "Log (10) with counter", "function": weight_7_priority_counter_strategy, "queue_name": "q4"},
 ]
 
-
-# Generate dataset to plot
-def dump_queue(queue_name):
-    return r.zrange(queue_name, 0, -1, withscores=True)
-
-
-def clean_chart(dataframes, queues):
-    for queue in queues:
-        r.delete(queue)
-        r.set(f"{queue}_counter", 0)
-
-    for d in dataframes:
-        if d is not None:
-            d.drop(index=d.index, inplace=True)
-
-
-def clean_all():
-    clean_chart(
-        list(st.session_state.dataframes.values()),
-        [strategy["queue_name"] for strategy in strategies]
-    )
-    for strategy in strategies:
-        st.session_state.pop(f"dequeued_{strategy['queue_name']}", None)
-    st.session_state.pop("package_number", None)
-    r.flushall()
-
-
-def build_dataframe(prioritization_strategy, identifier: str, queue_name: str, number: int, start: int):
-    if number != 0:
-        GenerateReportPriorityQueue(queue_name).prioritize_tasks(
-            start=start,
-            number_of_tasks=number,
-            package_request_uid=identifier,
-            priority_strategy=prioritization_strategy,
-            counter_name=f"{queue_name}_counter")
-
-    dump = dump_queue(queue_name)
-
-    priorities = list({int(p) for _, p in dump})
-    chart_data = pd.DataFrame.from_dict({"priorities": priorities})
-
-    packages = defaultdict(list)
-
-    for item, priority in dump:
-        package, chunk = item.decode().split("|")
-        packages[package].append((int(chunk), priority))
-
-    for package, package_entries in packages.items():
-        chart_data[package] = None
-        for chunk, priority in package_entries:
-            chart_data.loc[chart_data["priorities"] == priority, package] = chunk
-
-    return chart_data
-
-
-def render_dequeued_batch(batch, index):
-    batch_items = []
-    for item, priority in batch:
-        item_decoded = item.decode()
-        identifier = item_decoded.split("|")[0]
-        chunk = item_decoded.split("|")[1]
-        color = "#D3D3D3"
-        size = 35
-        batch_items.append(
-            f"<div style='display:inline-block;text-align:center;margin-right:15px;margin-bottom:0px;'>"
-            f"<div style='width:{size}px;height:{size}px;background-color:{color};'>{chunk}</div>"
-            f"<div style='color:black;'>{identifier}</div>"
-            f"</div>")
-    st.write(f"Batch {index + 1}")
-    markdown_to_write = " ".join(batch_items)
-    st.markdown(markdown_to_write, unsafe_allow_html=True)
-    st.divider()
-
-
-def render_bar_chart(dataframe, title):
-    melted_df = dataframe.melt(id_vars=["priorities"], var_name="package", value_name="chunk")
-
-    chart = alt.Chart(melted_df).mark_bar().encode(
-        x=alt.X("priorities:O", title="Priorities"),
-        xOffset="package:N",
-        y=alt.Y("chunk:Q", title="Chunks"),
-        color=alt.Color("package:N", legend=alt.Legend(title="Package")),
-        tooltip=["package", "chunk", "priorities"]
-    ).properties(
-        title=title,
-        width=800,
-        height=250
-    )
-
-    st.altair_chart(chart, use_container_width=True)
-
-
 batch_size = 10
 large_size = 21 * batch_size
 medium_size = 9 * batch_size
@@ -196,13 +103,13 @@ def main():
     dequeue_number = st.sidebar.number_input("Number to dequeue", min_value=1, max_value=500, value=100)
 
     if st.sidebar.button("Dequeue"):
-        dequeue(dequeue_number)
+        dequeue(dequeue_number, strategies)
     if st.sidebar.button("Dequeue 3 rounds"):
         for _ in range(3):
-            dequeue(dequeue_number)
+            dequeue(dequeue_number, strategies)
     if st.sidebar.button("Dequeue 5 rounds"):
         for _ in range(5):
-            dequeue(dequeue_number)
+            dequeue(dequeue_number, strategies)
 
     # Render charts dynamically
     for strategy in strategies:
@@ -219,7 +126,7 @@ def main():
                 for i, batch in enumerate(st.session_state[f"dequeued_{strategy['queue_name']}"]):
                     render_dequeued_batch(batch, i)
 
-    st.sidebar.button("Clean", on_click=lambda: clean_all())
+    st.sidebar.button("Clean", on_click=lambda: clean_all(strategies))
 
 
 def insert_scenario_large_then_small():
@@ -273,23 +180,6 @@ def insert_scenario_large_then_small():
     insert_into_queue_for(S9, small, small)  # S9-RFIs
     insert_into_queue_for(S9, small, 2 * small)  # S9-Issues
     insert_into_queue_for(S9, small, 3 * small)  # S9-Submittals
-
-
-def dequeue(dequeue_number):
-    for strategy in strategies:
-        dequeued_items = r.zpopmin(strategy["queue_name"], count=dequeue_number)
-        if f"dequeued_{strategy['queue_name']}" not in st.session_state:
-            st.session_state[f"dequeued_{strategy['queue_name']}"] = []
-        st.session_state[f"dequeued_{strategy['queue_name']}"].append(dequeued_items)
-
-        if st.session_state.dataframes[strategy["queue_name"]] is not None:
-            st.session_state.dataframes[strategy["queue_name"]] = build_dataframe(
-                strategy["function"],
-                queue_name=strategy["queue_name"],
-                identifier="n/a",
-                number=0,
-                start=0
-            )
 
 
 def insert_into_queue_for(package_id, insert_number, start):
