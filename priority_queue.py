@@ -37,6 +37,12 @@ class PriorityQueue:
         timestamp = int(utc_now().timestamp())
         return timestamp
 
+    def get_priority_count(self, counter_name: str) -> int:
+       return int(self._client.get(counter_name) or 0)
+
+    def incr_priority_count(self, counter_name: str) -> None:
+        self._client.incr(counter_name)
+
     def push(self, items: dict[_ItemIdentifier, _Priority]) -> None:
         for item, priority in items.items():
             self._client.zadd(name=self.queue_name, mapping={item: priority})  # type: ignore

@@ -12,46 +12,27 @@ from generate_report_priority_queue import GenerateReportPriorityQueue
 r = redis.Redis()
 
 
-def linear_weight_priority_counter_strategy(base_priority:int, index: int, spacing: int, total_number_of_tasks: int) -> int:
+def linear_weight_priority_counter_strategy(base_priority:int,priority_counter:int, index: int, spacing: int, total_number_of_tasks: int) -> int:
     """
     Balances priorities such that large packages do not block smaller ones,
     and smaller packages do not excessively punish larger ones.
     """
-    # priority_counter = int(r.get("linear_priority_counter") or 0)  # type: ignore
-    priority_counter = 0
-    weight = max(1, total_number_of_tasks // 5)  # Adjust weight based on package size
+    weight = max(1, int(log(total_number_of_tasks + 1, 10)))  # Use logarithmic scaling for weight
 
-    priority = (base_priority + int(priority_counter)) + int((index * spacing) / weight)
+    priority = (base_priority + priority_counter) + int((index * spacing) / weight)
 
-    # r.incr("linear_priority_counter")
     return priority
 
 
 
-def weight_priority_counter_strategy(base_priority:int, index: int, spacing: int, total_number_of_tasks: int) -> int:
-
-    # priority_counter = int(r.get("weight_priority_counter") or 0)  # type: ignore
-    priority_counter = 0
+def weight_priority_counter_strategy(base_priority:int, priority_counter:int, index: int, spacing: int, total_number_of_tasks: int) -> int:
     weight = max(1, int(total_number_of_tasks ** 0.5))
     priority = (base_priority + int(priority_counter)) + int((index * spacing) / weight)
 
-    # r.incr("weight_priority_counter")
     return priority
 
 
-def priority_counter_strategy(base_priority:int, index: int, spacing: int, total_number_of_tasks: int) -> int:
-    """
-    Every time a new item is added to the queue, it will punish a little bit the base_priority
-    """
-    priority_counter = int(r.get("priority_counter") or 0)  # type: ignore
-
-    priority = (base_priority + int(priority_counter)) + index * spacing
-
-    r.incr("priority_counter")
-    return priority
-
-
-def base_priority_strategy(base_priority:int, index: int, spacing: int, total_number_of_tasks: int) -> int:
+def base_priority_strategy(base_priority:int, priority_counter:int, index: int, spacing: int, total_number_of_tasks: int) -> int:
     """
     Every time a new item is added to the queue, it will punish a little bit the base_priority
     """
@@ -71,14 +52,11 @@ def dump_queue(queue_name):
 def clean_chart(dataframes, queues):
     for queue in queues:
         r.delete(queue)
+        r.set(f"{queue}_counter", 0)
 
     for d in dataframes:
         if d is not None:
             d.drop(index=d.index, inplace=True)
-
-    r.set("priority_counter", 0)
-    r.set("linear_priority_counter", 0)
-    r.set("weight_priority_counter", 0)
 
 def clean_all():
     clean_chart(
@@ -93,7 +71,8 @@ def build_dataframe(prioritization_strategy, identifier: str, queue_name: str, n
     if number != 0:
         GenerateReportPriorityQueue(queue_name).prioritize_tasks(number_of_tasks=number,
                                                                  package_request_uid=identifier,
-                                                                 priority_strategy=prioritization_strategy)
+                                                                 priority_strategy=prioritization_strategy,
+                                                                 counter_name=f"{queue_name}_counter")
 
     dump = dump_queue(queue_name)
 
