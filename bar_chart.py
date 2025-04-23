@@ -39,6 +39,12 @@ def build_dataframe(prioritization_strategy, identifier: str, queue_name: str, n
     return chart_data
 
 
+def render_bar_chart_for(strategies):
+    for strategy in strategies:
+        if st.session_state.dataframes[strategy["queue_name"]] is not None:
+            render_bar_chart(st.session_state.dataframes[strategy["queue_name"]], strategy["name"])
+
+
 def render_bar_chart(dataframe, title):
     melted_df = dataframe.melt(id_vars=["priorities"], var_name="package", value_name="chunk")
 

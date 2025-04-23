@@ -5,6 +5,16 @@ from bar_chart import build_dataframe
 
 r = redis.Redis()
 
+def render_dequeued_items_for(strategies):
+    columns = st.columns(len(strategies))
+    for col, strategy in zip(columns, strategies):
+        with col:
+            if f"dequeued_{strategy['queue_name']}" in st.session_state and st.session_state[
+                f"dequeued_{strategy['queue_name']}"] is not None:
+                st.title(f"{strategy['name']} Queue: dequeued")
+                for i, batch in enumerate(st.session_state[f"dequeued_{strategy['queue_name']}"]):
+                    render_dequeued_batch(batch, i)
+
 def render_dequeued_batch(batch, index):
     batch_items = []
     for item, priority in batch:
