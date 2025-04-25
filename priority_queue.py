@@ -37,6 +37,9 @@ class PriorityQueue:
         timestamp = int(utc_now().timestamp())
         return timestamp
 
+    def get_queue_length(self) -> int:
+        return self._client.zcard(self.queue_name)
+
     def get_priority_count(self, counter_name: str) -> int:
        return int(self._client.get(counter_name) or 0)
 

@@ -62,7 +62,7 @@ class GenerateReportPriorityQueue:
         priority_spacing = 10
         base_priority = self._priority_queue.get_base_score(package_request_uid)
         priority_counter = self._priority_queue.get_priority_count(counter_name)
-
+        queue_length = self._priority_queue.get_queue_length()
         max_priority = base_priority
         tasks = [i for i in range(start, start + number_of_tasks + 1)]
         for index, batched_numbers in enumerate(batched(tasks, PRIORITY_BATCH_SIZE)):
@@ -72,6 +72,7 @@ class GenerateReportPriorityQueue:
                 index=index,
                 spacing=priority_spacing,
                 total_number_of_tasks=number_of_tasks,
+                queue_length=queue_length,
             )
             self._add_tasks_with_priority(
                 list(batched_numbers),

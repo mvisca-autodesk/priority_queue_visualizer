@@ -13,34 +13,48 @@ r = redis.Redis()
 
 
 
-def linear_weight_priority_counter_strategy(base_priority: int, priority_counter: int, index: int, spacing: int,
-                                            total_number_of_tasks: int) -> int:
+def log_weight_priority_counter_strategy(base_priority: int, priority_counter: int, index: int, spacing: int,
+                                         total_number_of_tasks: int, queue_length: int) -> int:
     """
     Balances priorities such that large packages do not block smaller ones,
     and smaller packages do not excessively punish larger ones.
     """
-    weight = max(1, int(log(total_number_of_tasks, 2)))
+    weight = max(1, int(log(total_number_of_tasks, 5)))
 
     priority = (base_priority + priority_counter) + int((index * spacing) / weight)
 
     return priority
 
 
-def weight_7_priority_counter_strategy(base_priority: int, priority_counter: int, index: int, spacing: int,
-                                       total_number_of_tasks: int) -> int:
-    # weight = max(1, int(total_number_of_tasks ** 0.5))
-    # priority = (base_priority + int(priority_counter)) + int((index * spacing) / weight)
-    #
-    # return priority
-    weight = max(1, int(log(total_number_of_tasks, 10)))
+def fair_strategy(base_priority: int, priority_counter: int, index: int, spacing: int,
+                  total_number_of_tasks: int, queue_length: int) -> int:
+    """
+    Packages will enqueue a number of items multiple times one for each AssetType. These will be batched by a batch_size, the batch will be indicated by the index, and
+    the priority of each batch will be calculated by this function.
 
-    priority = (base_priority + priority_counter) + int((index * spacing) / weight)
+    We do not want large packages to block smaller ones.
+    We do not want a frequent number of smaller packages to punish larger ones.
+    We want to balance the priorities such that things are spaced out for fairness, slightly punishing larger packages.
+    The first packages in the queue should not be overly punished as more packages are added.
 
+    :param: base_priority: The base priority for the package
+    :param: priority_counter: The number of times all packages have requested items to be prioritized
+    :param: index: The index of the batch of total_number_of_tasks
+    :param: spacing: A value to space out the priorities
+    :param: total_number_of_tasks: The total number of items the package is requesting to be prioritized
+    :param: queue_length: The length of the priority queue
+
+    :return: The priority for the batch of items. A smaller number means higher priority.
+    """
+    offset = priority_counter * max(1, int(log(queue_length + 1, 2) ** 1.5 + log(queue_length + 1, 10)))
+    weight = max(1, int(log(total_number_of_tasks, 5)))
+    spacing_offset = index * spacing
+    priority = base_priority + offset + spacing_offset
     return priority
 
 
 def base_priority_strategy(base_priority: int, priority_counter: int, index: int, spacing: int,
-                           total_number_of_tasks: int) -> int:
+                           total_number_of_tasks: int, queue_length: int) -> int:
     """
     Every time a new item is added to the queue, it will punish a little bit the base_priority
     """
@@ -54,13 +68,13 @@ strategies = [
         "queue_name": "q1"
     },
     {
-        "name": "Log (10) with counter",
-        "function": weight_7_priority_counter_strategy,
+        "name": "Balanced Priority",
+        "function": fair_strategy,
         "queue_name": "q2"
     },
     {
-        "name": "Log (2) with counter",
-        "function": linear_weight_priority_counter_strategy,
+        "name": "Log (5) Weight Priority Counter",
+        "function": log_weight_priority_counter_strategy,
         "queue_name": "q3"
     },
 ]

@@ -1,16 +1,17 @@
 from traceback import extract_tb
 from uuid import uuid4
 
+import pandas as pd
 import streamlit as st
 
 from bar_chart import build_dataframe
 
 batch_size = 10
 large_package = 10_000
-medium_package = 5_000
-small_package = 500
-extra_small_package = 100
-reduction_factor = 10
+medium_package = 2_000
+small_package = 800
+extra_small_package = 300
+reduction_factor = 1
 
 
 medium = (medium_package // reduction_factor) // 4
