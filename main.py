@@ -6,19 +6,11 @@ import streamlit as st
 from bar_chart import render_bar_chart_for
 from clean import clean_all
 from dequeue import dequeue, render_dequeued_items_for
-from insert import insert_into_queue, insert_scenario_large_then_small, insert_scenario_small_medium_large, \
-    insert_scenario_large_small_medium_large
+from insert import insert_into_queue, insert_scenario_medium_then_x_small, insert_scenario_x_small_small_medium, \
+    insert_scenario_medium_x_small_small_medium
 
 r = redis.Redis()
 
-
-def weight_3_priority_counter_strategy(base_priority: int, priority_counter: int, index: int, spacing: int,
-                                       total_number_of_tasks: int) -> int:
-    weight = max(1, int(log(total_number_of_tasks, 2)))
-
-    priority = (base_priority + priority_counter) + int((index * spacing) / weight)
-
-    return priority
 
 
 def linear_weight_priority_counter_strategy(base_priority: int, priority_counter: int, index: int, spacing: int,
@@ -62,8 +54,8 @@ strategies = [
         "queue_name": "q1"
     },
     {
-        "name": "Log with counter",
-        "function": weight_3_priority_counter_strategy,
+        "name": "Log (10) with counter",
+        "function": weight_7_priority_counter_strategy,
         "queue_name": "q2"
     },
     {
@@ -71,17 +63,12 @@ strategies = [
         "function": linear_weight_priority_counter_strategy,
         "queue_name": "q3"
     },
-    {
-        "name": "Log (10) with counter",
-        "function": weight_7_priority_counter_strategy,
-        "queue_name": "q4"
-    },
 ]
 
 
 def main():
     st.set_page_config(layout="wide")
-    insert_number = st.sidebar.number_input("Number of items to add", min_value=1, max_value=100, value=50)
+    insert_number = st.sidebar.number_input("Number of items to add", min_value=1, max_value=10_000, value=50)
 
     if "dataframes" not in st.session_state:
         st.session_state.dataframes = {strat["queue_name"]: None for strat in strategies}
@@ -91,12 +78,12 @@ def main():
     if st.sidebar.button("Insert into queue"):
         insert_into_queue(insert_number, strategies)
 
-    if st.sidebar.button("Insert L1,L2,M3,S4,M5,S6,S7,S8,S9"):
-        insert_scenario_large_then_small(strategies)
-    if st.sidebar.button("Insert S1,S2,S3,M4,S5,L6,L7"):
-        insert_scenario_small_medium_large(strategies)
-    if st.sidebar.button("Insert L1,S2,L3,S4,M5,S6,M7,S8,L9"):
-        insert_scenario_large_small_medium_large(strategies)
+    if st.sidebar.button("Insert M1,M2,S3,S4,S5,XS6,XS7,XS8,XS9"):
+        insert_scenario_medium_then_x_small(strategies)
+    if st.sidebar.button("Insert XS1,XS2,XS3,S4,XS5,M6,M7"):
+        insert_scenario_x_small_small_medium(strategies)
+    if st.sidebar.button("Insert M1,XS2,M3,XS4,S5,XS6,S7,XS8,M9"):
+        insert_scenario_medium_x_small_small_medium(strategies)
 
     dequeue_number = st.sidebar.number_input("Number to dequeue", min_value=1, max_value=500, value=100)
 

@@ -1,84 +1,147 @@
+from traceback import extract_tb
 from uuid import uuid4
 
-from bar_chart import build_dataframe
 import streamlit as st
 
+from bar_chart import build_dataframe
+
 batch_size = 10
-large_size = 21 * batch_size
-medium_size = 9 * batch_size
-small_size = 5 * batch_size
-large = 100
-medium = 50
-small = 20
+large_package = 10_000
+medium_package = 5_000
+small_package = 500
+extra_small_package = 100
+reduction_factor = 10
 
-def insert_scenario_large_then_small(strategies):
-    """
-    Large, Large, Medium, Small, Medium, Small, Small, Small, Small
-    """
-    L1 = insert_into_queue(large, strategies)  # L1-Forms
-    insert_into_queue_for(L1, large, large, strategies)  # L1-RFIs
 
-    L2 = insert_into_queue(large, strategies)  # L2-Forms
-    insert_into_queue_for(L2, large, large, strategies)  # L2-RFIs
-    insert_into_queue_for(L1, large, 2 * large, strategies)  # L1-Issues
-    insert_into_queue_for(L2, large, 2 * large, strategies)  # L2-Issues
+medium = (medium_package // reduction_factor) // 4
+small = (small_package // reduction_factor) // 4
+extra_small = (extra_small_package // reduction_factor) // 4
 
-    M3 = insert_into_queue(medium, strategies)  # M3-Forms
-    insert_into_queue_for(L2, large, 3 * large, strategies)  # L2-Submittals
-    insert_into_queue_for(M3, medium, medium, strategies)  # M3-RFIs
-    insert_into_queue_for(L1, large, 3 * large, strategies)  # L1-Submittals
-    insert_into_queue_for(M3, medium, 2 * medium, strategies)  # M3-Issues
+
+def insert_scenario_medium_then_x_small(strategies):
+
+    M1 = insert_into_queue(medium, strategies)  # M1-Forms
+    insert_into_queue_for(M1, medium, medium, strategies)  # M1-RFIs
+
+    M2 = insert_into_queue(medium, strategies)  # M2-Forms
+    insert_into_queue_for(M2, medium, medium, strategies)  # M2-RFIs
+    insert_into_queue_for(M1, medium, 2 * medium, strategies)  # M1-Issues
+    insert_into_queue_for(M2, medium, 2 * medium, strategies)  # M2-Issues
+
+    S3 = insert_into_queue(small, strategies)  # S3-Forms
+    insert_into_queue_for(M2, medium, 3 * medium, strategies)  # M2-Submittals
+    insert_into_queue_for(S3, small, small, strategies)  # S3-RFIs
+    insert_into_queue_for(M1, medium, 3 * medium, strategies)  # M1-Submittals
+    insert_into_queue_for(S3, small, 2 * small, strategies)  # S3-Issues
+
+    XS4 = insert_into_queue(extra_small, strategies)  # XS4-Forms
+    insert_into_queue_for(S3, small, 3 * small, strategies)  # S3-Submittals
+    insert_into_queue_for(XS4, extra_small, extra_small, strategies)  # XS4-RFIs
+    insert_into_queue_for(XS4, extra_small, 2 * extra_small, strategies)  # XS4-Issues
+
+    S5 = insert_into_queue(small, strategies)  # S5-Forms
+    insert_into_queue_for(XS4, extra_small, 3 * extra_small, strategies)  # XS4-Submittals
+    insert_into_queue_for(S5, small, small, strategies)  # S5-RFIs
+
+    XS6 = insert_into_queue(extra_small, strategies)  # XS6-Forms
+    insert_into_queue_for(S5, small, 2 * small, strategies)  # S5-Issues
+    insert_into_queue_for(XS6, extra_small, extra_small, strategies)  # S6-RFIs
+
+    XS7 = insert_into_queue(extra_small, strategies)  # XS7-Forms
+    insert_into_queue_for(XS6, extra_small, 2 * extra_small, strategies)  # S6-Issues
+    insert_into_queue_for(XS7, extra_small, extra_small, strategies)  # S7-RFIs
+    insert_into_queue_for(S5, small, 3 * small, strategies)  # S5-Submittals
+    insert_into_queue_for(XS6, extra_small, 3 * extra_small, strategies)  # S6-Submittals
+    insert_into_queue_for(XS7, extra_small, 2 * extra_small, strategies)  # S7-Issues
+    insert_into_queue_for(XS7, extra_small, 3 * extra_small, strategies)  # S7-Submittals
+
+    XS8 = insert_into_queue(extra_small, strategies)  # XS8-Forms
+    insert_into_queue_for(XS8, extra_small, extra_small, strategies)  # XS8-RFIs
+    insert_into_queue_for(XS8, extra_small, 2 * extra_small, strategies)  # XS8-Issues
+    insert_into_queue_for(XS8, extra_small, 3 * extra_small, strategies)  # XS8-Submittals
+
+    XS9 = insert_into_queue(extra_small, strategies)  # XS9-Forms
+    insert_into_queue_for(XS9, extra_small, extra_small, strategies)  # XS9-RFIs
+    insert_into_queue_for(XS9, extra_small, 2 * extra_small, strategies)  # XS9-Issues
+    insert_into_queue_for(XS9, extra_small, 3 * extra_small, strategies)  # XS9-Submittals
+
+
+def insert_scenario_x_small_small_medium(strategies):
+    XS1 = insert_into_queue(extra_small, strategies)  # XS1-Forms
+
+    XS2 = insert_into_queue(extra_small, strategies)  # XS2-Forms
+    insert_into_queue_for(XS1, extra_small, extra_small, strategies)  # XS1-RFIs
+    insert_into_queue_for(XS1, extra_small, 2 * extra_small, strategies)  # XS1-Issues
+    insert_into_queue_for(XS2, extra_small, extra_small, strategies)  # XS2-RFIs
+    insert_into_queue_for(XS1, extra_small, 3 * extra_small, strategies)  # XS1-Submittals
+
+    XS3 = insert_into_queue(extra_small, strategies)  # XS3-Forms
+    insert_into_queue_for(XS2, extra_small, 2 * extra_small, strategies)  # XS2-Issues
+    insert_into_queue_for(XS3, extra_small, extra_small, strategies)  # XS3-RFIs
+    insert_into_queue_for(XS2, extra_small, 3 * extra_small, strategies)  # XS2-Submittals
 
     S4 = insert_into_queue(small, strategies)  # S4-Forms
-    insert_into_queue_for(M3, medium, 3 * medium, strategies)  # M3-Submittals
+    insert_into_queue_for(XS3, extra_small, 2 * extra_small, strategies)  # XS3-Issues
     insert_into_queue_for(S4, small, small, strategies)  # S4-RFIs
+    insert_into_queue_for(XS3, extra_small, 3 * extra_small, strategies)  # XS3-Submittals
+
+    XS5 = insert_into_queue(extra_small, strategies)
     insert_into_queue_for(S4, small, 2 * small, strategies)  # S4-Issues
-
-    M5 = insert_into_queue(medium, strategies)  # M5-Forms
+    insert_into_queue_for(XS5, extra_small, extra_small, strategies)  # XS5-RFIs
     insert_into_queue_for(S4, small, 3 * small, strategies)  # S4-Submittals
-    insert_into_queue_for(M5, medium, medium, strategies)  # M5-RFIs
+    insert_into_queue_for(XS5, extra_small, 2 * extra_small, strategies)  # XS5-Issues
+    insert_into_queue_for(XS5, extra_small, 3 * extra_small, strategies)  # XS5-Submittals
 
-    S6 = insert_into_queue(small, strategies)  # S6-Forms
-    insert_into_queue_for(M5, medium, 2 * medium, strategies)  # M5-Issues
-    insert_into_queue_for(S6, small, small, strategies)  # M6-RFIs
+    M6 = insert_into_queue(medium, strategies)
+    insert_into_queue_for(M6, medium, medium, strategies)  # M6-RFIs
+    insert_into_queue_for(M6, medium, 2 * medium, strategies)  # M6-Issues
+    insert_into_queue_for(M6, medium, 3 * medium, strategies)  # M6-Submittals
 
-    S7 = insert_into_queue(small, strategies)  # S7-Forms
-    insert_into_queue_for(S6, small, 2 * small, strategies)  # M6-Issues
-    insert_into_queue_for(S7, small, small, strategies)  # M7-RFIs
-    insert_into_queue_for(M5, medium, 3 * medium, strategies)  # M5-Submittals
-    insert_into_queue_for(S6, small, 3 * small, strategies)  # M6-Submittals
-    insert_into_queue_for(S7, small, 2 * small, strategies)  # M7-Issues
-    insert_into_queue_for(S7, small, 3 * small, strategies)  # M7-Submittals
+    M7 = insert_into_queue(medium, strategies)
+    insert_into_queue_for(M7, medium, medium, strategies)  # M7-RFIs
+    insert_into_queue_for(M7, medium, 2 * medium, strategies)  # M7-Issues
+    insert_into_queue_for(M7, medium, 3 * medium, strategies)  # M7-Submittals
 
-    S8 = insert_into_queue(small, strategies)  # S8-Forms
-    insert_into_queue_for(S8, small, small, strategies)  # S8-RFIs
-    insert_into_queue_for(S8, small, 2 * small, strategies)  # S8-Issues
-    insert_into_queue_for(S8, small, 3 * small, strategies)  # S8-Submittals
 
-    S9 = insert_into_queue(small, strategies)  # S9-Forms
-    insert_into_queue_for(S9, small, small, strategies)  # S9-RFIs
-    insert_into_queue_for(S9, small, 2 * small, strategies)  # S9-Issues
-    insert_into_queue_for(S9, small, 3 * small, strategies)  # S9-Submittals
+def insert_scenario_medium_x_small_small_medium(strategies):
+    M1 = insert_into_queue(medium, strategies)
+    XS2 = insert_into_queue(extra_small, strategies)
 
-def insert_scenario_small_medium_large(strategies):
-    insert_into_queue(small_size, strategies)
-    insert_into_queue(small_size, strategies)
-    insert_into_queue(small_size, strategies)
-    insert_into_queue(medium_size, strategies)
-    insert_into_queue(small_size, strategies)
-    insert_into_queue(large_size, strategies)
-    insert_into_queue(large_size, strategies)
+    insert_into_queue_for(M1, medium, medium, strategies)  # M1-RFIs
+    insert_into_queue_for(XS2, extra_small, extra_small, strategies)  # XS2-RFIs
+    insert_into_queue_for(M1, medium, 2 * medium, strategies)  # M1-Issues
+    insert_into_queue_for(XS2, extra_small, 2 * extra_small, strategies)  # XS2-Issues
+    insert_into_queue_for(M1, medium, 3 * medium, strategies)  # M1-Submittals
+    M3 = insert_into_queue(medium, strategies)
+    insert_into_queue_for(XS2, extra_small, 3 * extra_small, strategies)  # XS2-Submittals
+    insert_into_queue_for(M3, medium, medium, strategies)  # M3-RFIs
+    XS4 = insert_into_queue(extra_small, strategies)
+    insert_into_queue_for(M3, medium, 2 * medium, strategies)  # M3-Issues
+    insert_into_queue_for(XS4, extra_small, extra_small, strategies)  # XS4-RFIs
+    insert_into_queue_for(M3, medium, 3 * medium, strategies)  # M3-Submittals
+    S5 = insert_into_queue(small, strategies)
+    insert_into_queue_for(XS4, extra_small, 2 * extra_small, strategies)  # XS4-Issues
+    insert_into_queue_for(S5, small, small, strategies)  # S5-RFIs
+    insert_into_queue_for(XS4, extra_small, 3 * extra_small, strategies)  # XS4-Submittals
+    XS6 = insert_into_queue(extra_small, strategies)
+    insert_into_queue_for(S5, small, 2 * small, strategies)  # S5-Issues
+    insert_into_queue_for(XS6, extra_small, extra_small, strategies)  # XS6-RFIs
+    insert_into_queue_for(S5, small, 3 * small, strategies)  # S5-Submittals
+    S7 = insert_into_queue(small, strategies)
+    insert_into_queue_for(XS6, extra_small, 2 * extra_small, strategies)  # XS6-Issues
+    insert_into_queue_for(S7, small, small, strategies)  # S7-RFIs
+    insert_into_queue_for(XS6, extra_small, 3 * extra_small, strategies)  # XS6-Submittals
+    XS8 = insert_into_queue(extra_small, strategies)
+    insert_into_queue_for(S7, small, 2 * small, strategies)  # S7-Issues
+    insert_into_queue_for(XS8, extra_small, extra_small, strategies)  # XS8-RFIs
+    insert_into_queue_for(XS8, extra_small, 2 * extra_small, strategies)  # XS8-Issues
+    insert_into_queue_for(S7, small, 3 * small, strategies)  # S7-Submittals
+    insert_into_queue_for(XS8, extra_small, 3 * extra_small, strategies)  # XS8-Submittals
+    M9 = insert_into_queue(medium, strategies)
+    insert_into_queue_for(M9, medium, medium, strategies)  # M9-RFIs
+    insert_into_queue_for(M9, medium, 2 * medium, strategies)  # M9-Issues
+    insert_into_queue_for(M9, medium, 3 * medium, strategies)  # M9-Submittals
 
-def insert_scenario_large_small_medium_large(strategies):
-    insert_into_queue(large_size, strategies)
-    insert_into_queue(small_size, strategies)
-    insert_into_queue(large_size, strategies)
-    insert_into_queue(small_size, strategies)
-    insert_into_queue(medium_size, strategies)
-    insert_into_queue(small_size, strategies)
-    insert_into_queue(medium_size, strategies)
-    insert_into_queue(small_size, strategies)
-    insert_into_queue(large_size, strategies)
 
 def insert_into_queue_for(package_id, insert_number, start, strategies):
     for strategy in strategies:
