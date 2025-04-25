@@ -48,7 +48,7 @@ def render_bar_chart_for(strategies):
 def render_bar_chart(dataframe, title):
     melted_df = dataframe.melt(id_vars=["priorities"], var_name="package", value_name="chunk")
 
-    chart = alt.Chart(melted_df).mark_bar().encode(
+    chart = alt.Chart(melted_df).mark_bar(size=11).encode(
         x=alt.X("priorities:O", title="Priorities"),
         xOffset="package:N",
         y=alt.Y("chunk:Q", title="Chunks"),
