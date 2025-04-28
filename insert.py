@@ -11,7 +11,7 @@ large_package = 10_000
 medium_package = 2_000
 small_package = 800
 extra_small_package = 300
-reduction_factor = 1
+reduction_factor = 10
 
 
 medium = (medium_package // reduction_factor) // 4

@@ -48,7 +48,7 @@ def render_bar_chart_for(strategies):
 def render_bar_chart(dataframe, title):
     melted_df = dataframe.melt(id_vars=["priorities"], var_name="package", value_name="chunk")
 
-    chart = alt.Chart(melted_df).mark_bar(size=21).encode(
+    chart = alt.Chart(melted_df).mark_bar(size=15).encode(
         x=alt.X("priorities:O", title="Priorities"),
         xOffset="package:N",
         y=alt.Y("chunk:Q", title="Chunks"),
@@ -56,8 +56,8 @@ def render_bar_chart(dataframe, title):
         tooltip=["package", "chunk", "priorities"]
     ).properties(
         title=title,
-        width=3600,
-        height=500
+        width=1575,
+        height=600
     )
 
     st.altair_chart(chart, use_container_width=False)

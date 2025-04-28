@@ -41,7 +41,13 @@ class PriorityQueue:
         return self._client.zcard(self.queue_name)
 
     def get_priority_count(self, counter_name: str) -> int:
-       return int(self._client.get(counter_name) or 0)
+       queue_length = self.get_queue_length()
+       if queue_length < 1000:
+           self._client.set(counter_name, 0)
+       count = int(self._client.get(counter_name) or 0)
+       if count > 200:
+           self._client.set(counter_name, 0)
+       return count
 
     def incr_priority_count(self, counter_name: str) -> None:
         self._client.incr(counter_name)

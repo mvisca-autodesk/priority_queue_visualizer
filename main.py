@@ -18,10 +18,32 @@ def log_weight_priority_counter_strategy(base_priority: int, priority_counter: i
     """
     Balances priorities such that large packages do not block smaller ones,
     and smaller packages do not excessively punish larger ones.
+
+    :param: base_priority: The base priority for the package
+    :param: priority_counter: The number of times all packages have requested items to be prioritized
+    :param: index: The index of the batch of total_number_of_tasks
+    :param: spacing: A value to space out the priorities
+    :param: total_number_of_tasks: The total number of items the package is requesting to be prioritized
+    :param: queue_length: The length of the priority queue
+
+    :return: The priority for the batch of items. A smaller number means higher priority.
     """
     weight = max(1, int(log(total_number_of_tasks, 5)))
 
     priority = (base_priority + priority_counter) + int((index * spacing) / weight)
+
+    return priority
+
+def log_weight_queue_length_strategy(base_priority: int, priority_counter: int, index: int, spacing: int,
+                                         total_number_of_tasks: int, queue_length: int) -> int:
+    """
+
+    """
+    # weight = max(1, int(log(total_number_of_tasks, 5)))
+    # modulus = priority_counter % spacing # add this to the base_priority
+
+    offset = priority_counter * max(1, int(log(queue_length + 1, 2)))
+    priority = (base_priority + offset) + (index * spacing)
 
     return priority
 
@@ -68,8 +90,8 @@ strategies = [
         "queue_name": "q1"
     },
     {
-        "name": "Balanced Priority",
-        "function": fair_strategy,
+        "name": "Log (2) Priority * Queue Length",
+        "function": log_weight_queue_length_strategy,
         "queue_name": "q2"
     },
     {
